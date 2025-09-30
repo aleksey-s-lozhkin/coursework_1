@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any, Dict, List
 
@@ -15,15 +15,22 @@ logs_path = os.path.join(
 )
 os.makedirs(logs_path, exist_ok=True)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(os.path.join(logs_path, 'utils.log'), encoding='utf-8', mode='w'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('utils')
+logger.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+file_handler = logging.FileHandler(os.path.join(logs_path, 'utils.log'), encoding='utf-8', mode='w')
+file_handler.setLevel(logging.INFO)
+file_handler.setFormatter(formatter)
+
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.DEBUG)
+console_handler.setFormatter(formatter)
+
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
+
 
 def log_function(func):
     @wraps(func)
@@ -35,6 +42,7 @@ def log_function(func):
             return result
         except Exception as err:
             logger.error(f"Ошибка в функции {func.__name__}: {str(err)}")
+
     return wrapper
 
 
@@ -84,7 +92,7 @@ def read_user_setting(setting: str) -> List[str] | None:
 
 
 @log_function
-def read_xlsx(path: str, sheet: int | str) -> List[Dict[str, Any]]:
+def read_xlsx(path: str, sheet: int | str = 0) -> List[Dict[str, Any]]:
     """ "Функция читает данные из xlsx файла и возвращает список словарей с транзакциями"""
 
     try:
@@ -92,7 +100,7 @@ def read_xlsx(path: str, sheet: int | str) -> List[Dict[str, Any]]:
         logger.info(f"Файл существует: {os.path.exists(path)}")
 
         df = pd.read_excel(
-            path, sheet, usecols=['Дата операции', 'Номер карты', 'Сумма платежа', 'Категория', 'Описание']
+            path, sheet_name=sheet, usecols=['Дата операции', 'Номер карты', 'Сумма платежа', 'Категория', 'Описание']
         )
 
         logger.info(f"Файл прочитан успешно. Размер данных: {len(df)} строк, {len(df.columns)} колонок")
@@ -123,7 +131,7 @@ def read_xlsx(path: str, sheet: int | str) -> List[Dict[str, Any]]:
 
 
 @log_function
-def sorted_by_date(data: List[Dict[str, Any]], date: datetime):
+def sorted_by_date(data: List[Dict[str, Any]], date: datetime) -> List[Dict[str, Any]]:
     """ "Функция получает на вход список словарей с транзакциями и возвращает новый отфильтрованный список словарей
     на указанную дату с начала месяца"""
 
@@ -256,4 +264,203 @@ def get_expense(data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         cashback = round(total_amount * 0.01, 2)
         result.append({"last_digits": card[1:], "total_spent": float(total_amount), "cashback": float(cashback)})
 
+    return result
+
+
+@log_function
+def sorted_by_range(data: List[Dict[str, Any]], date: datetime, date_range: str = 'M') -> List[Dict[str, Any]] | None:
+    """ "Функция получает на вход список словарей с транзакциями и возвращает новый отфильтрованный список словарей
+    на указанную дату с начала M - месяца, Y - года, ALL - все данные до указанной даты, W - недели"""
+
+    if date_range == 'M':
+        start_of_range = date.replace(day=1, hour=0, minute=0, second=0)
+
+    elif date_range == 'Y':
+        start_of_range = date.replace(day=1, month=1, hour=0, minute=0, second=0)
+
+    elif date_range == 'ALL':
+        start_of_range = datetime.min
+
+    elif date_range == 'W':
+        monday_number = (date - timedelta(days=date.weekday())).day
+        start_of_range = date.replace(day=monday_number, hour=0, minute=0, second=0)
+
+    else:
+        logger.error(f'Ошибка при обработке временного диапазона "{date_range}"')
+        raise ValueError
+
+    filtered_data = list(
+        filter(
+            lambda x: (
+                'date' in x
+                and (lambda d: start_of_range <= d <= date if d else False)(
+                    datetime.strptime(x['date'], '%d.%m.%Y %H:%M:%S')
+                )
+            ),
+            data,
+        )
+    )
+
+    logger.debug(filtered_data)
+    return filtered_data
+
+
+@log_function
+def get_expense_by_category(data: List[Dict[str, Any]]) -> List[Dict[str, Any]] | None:
+    """Функция возвращает отсортированный список по категориям"""
+
+    if not data:
+        return None
+
+    df = pd.DataFrame(data)
+
+    expenses = (
+        df[df['amount'] < 0]
+        .groupby('category')['amount']
+        .sum()
+        .abs()
+        .round(0)
+        .sort_values(ascending=False)  # Сортировка по убыванию
+    )
+
+    return [{"category": category, "amount": int(total_amount)} for category, total_amount in expenses.items()]
+
+
+@log_function
+def get_top_seven_category(data: List[Dict[str, Any]]) -> List[Dict[str, Any]] | None:
+    """ """
+
+    if not data:
+        return None
+
+    df = pd.DataFrame(data)
+
+    exclude_values = ['Переводы', 'Бонусы', 'Наличные', 'Пополнения']
+
+    result_df = (
+        df[~df['category'].isin(exclude_values)]
+        .assign(amount_abs=df['amount'].abs())
+        .sort_values('amount_abs', ascending=False)
+        .head(7)
+        .drop('amount_abs', axis=1)
+    )
+
+    logger.debug(result_df.to_dict('records'))
+    return result_df.to_dict('records')
+
+
+@log_function
+def get_other_category(data: List[Dict[str, Any]]) -> List[Dict[str, Any]] | None:
+    """Получить категории кроме исключенных, пропуская первые 7 наибольших по модулю"""
+
+    if not data:
+        return None
+
+    df = pd.DataFrame(data)
+
+    exclude_values = ['Переводы', 'Бонусы', 'Наличные', 'Пополнения']
+
+    result_df = (
+        df[~df['category'].isin(exclude_values)]
+        .assign(amount_abs=df['amount'].abs())
+        .sort_values('amount_abs', ascending=False)
+        .iloc[7:]  # Исправлено: iloc вместо ilock
+        .drop('amount_abs', axis=1)
+    )
+
+    total_amount = result_df['amount'].sum()
+
+    result = result = [{"category": "Остальное", "amount": int(total_amount)}]
+
+    logger.debug(result)
+    return result
+
+
+@log_function
+def get_transfer_and_cash(data: List[Dict[str, Any]]) -> List[Dict[str, Any]] | None:
+    """ """
+
+    if not data:
+        return None
+
+    df = pd.DataFrame(data)
+
+    include_values = ['Переводы', 'Наличные']
+
+    result_df = (
+        df[df['category'].isin(include_values)]
+        .assign(amount_abs=df['amount'].abs())
+        .sort_values('amount_abs', ascending=False)
+        .drop('amount_abs', axis=1)
+    )
+
+    logger.debug(result_df.to_dict('records'))
+    return result_df.to_dict('records')
+
+
+@log_function
+def get_income(data: List[Dict[str, Any]]) -> List[Dict[str, Any]] | None:
+    """ """
+
+    if not data:
+        return None
+
+    df = pd.DataFrame(data)
+
+    include_values = ['Бонусы', 'Пополнения']
+
+    result_series = (
+        df[df['category'].isin(include_values)]
+        .groupby('category')['amount']
+        .sum()
+        .abs()
+        .round(0)
+        .sort_values(ascending=False)
+    )
+
+    result = [{'category': category, 'amount': int(amount)}
+              for category, amount in result_series.items()]
+
+    logger.debug(result)
+    return result
+
+
+@log_function
+def get_total_amount(data: List[Dict[str, Any]]) -> int | None:
+    """ """
+
+    if not data:
+        return None
+
+    df = pd.DataFrame(data)
+
+    total_expense = (
+        df['amount']
+        .sum()
+        .round(0)
+    )
+
+    result = int(abs(total_expense))
+
+    logger.debug(result)
+    return result
+
+@log_function
+def get_total_amount_income(data: List[Dict[str, Any]]) -> int | None:
+    """ """
+
+    if not data:
+        return None
+
+    df = pd.DataFrame(data)
+
+    total_expense = (
+        df['amount']
+        .sum()
+        .round(0)
+    )
+
+    result = int(abs(total_expense))
+
+    logger.debug(result)
     return result
