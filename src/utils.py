@@ -21,11 +21,11 @@ logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 file_handler = logging.FileHandler(os.path.join(logs_path, 'utils.log'), encoding='utf-8', mode='w')
-file_handler.setLevel(logging.INFO)
+file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(formatter)
 
 console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
+console_handler.setLevel(logging.WARNING)
 console_handler.setFormatter(formatter)
 
 logger.addHandler(file_handler)
@@ -100,7 +100,9 @@ def read_xlsx(path: str, sheet: int | str = 0) -> List[Dict[str, Any]]:
         logger.info(f"Файл существует: {os.path.exists(path)}")
 
         df = pd.read_excel(
-            path, sheet_name=sheet, usecols=['Дата операции', 'Номер карты', 'Сумма платежа', 'Категория', 'Описание']
+            path,
+            sheet_name=sheet,
+            usecols=['Дата операции', 'Номер карты', 'Сумма платежа', 'Категория', 'Описание', 'Кэшбэк'],
         )
 
         logger.info(f"Файл прочитан успешно. Размер данных: {len(df)} строк, {len(df.columns)} колонок")
@@ -112,6 +114,7 @@ def read_xlsx(path: str, sheet: int | str = 0) -> List[Dict[str, Any]]:
                 'Сумма платежа': 'amount',
                 'Категория': 'category',
                 'Описание': 'description',
+                'Кэшбэк': 'cashback',
             }
         )
 
@@ -161,10 +164,18 @@ def top_five(data: list[Dict[str, Any]]) -> List[Dict[str, Any]] | None:
 
     result = sorted(data, key=lambda transaction: abs(transaction.get('amount', 0)), reverse=True)[:5]
 
-    return [
-        {key: transaction[key] for key in ['date', 'amount', 'category', 'description'] if key in transaction}
-        for transaction in result
-    ]
+    formatted_result = []
+    for transaction in result:
+        formatted_transaction = {}
+        for key in ['date', 'amount', 'category', 'description']:
+            if key in transaction:
+                if key == 'date':
+                    formatted_transaction[key] = transaction[key].split()[0]
+                else:
+                    formatted_transaction[key] = transaction[key]
+        formatted_result.append(formatted_transaction)
+
+    return formatted_result
 
 
 @log_function
@@ -172,7 +183,7 @@ def exchange_rate(currency: List[str]) -> List[Dict[str, Any]] | None:
     """Функция получает на вход словарь с перечнем валют, по которым надо получить текущий курс и возвращает словарь,
     где ключи - код валюты, а значения - текущий курс"""
 
-    currency_value: Dict[str, Any] = {}
+    currency_value: List[Dict[str, Any]] = []
 
     load_dotenv()
     api_key = os.getenv('API_KEY')
@@ -197,11 +208,11 @@ def exchange_rate(currency: List[str]) -> List[Dict[str, Any]] | None:
             logger.info(f'Полученные данные: {get_convert}')
 
             if 'rate' in get_convert and get_convert['rate'] is not None:
-                currency_value[item] = {'price': str(get_convert['rate'])}
+                currency_value.append({'currency': item, 'rate': float(get_convert['rate'])})
                 logger.info(f'Успешно извлеченный курс для {item}: {get_convert["rate"]}')
             else:
                 logger.warning(f"Не найден курс обмена валюты {item} в ответе: {get_convert}")
-                currency_value[item] = {'price': None}
+                currency_value.append({'currency': item, 'rate': None})
 
         except requests.exceptions.RequestException as err:
             logger.error(f"При выполнении запроса произошла ошибка: {err}")
@@ -219,13 +230,20 @@ def stock_price(data: List[str]) -> List[Dict[str, Any]] | None:
     """Функция получает на вход список акций и возвращает список словарей, где ключи - код акций, а значение -
     стоимость акций"""
 
+    stock_prices: List[Dict[str, Any]] = []
+
     load_dotenv()
     api_key = os.getenv('API_KEY')
 
     if not api_key:
         logger.error('API_KEY не найден в переменных окружения')
+        return None
 
-    symbol = ', '.join(data)
+    if not data:
+        logger.warning('Получен пустой список акций')
+        return None
+
+    symbol = ','.join(data)
 
     url = f'https://api.twelvedata.com/price?symbol={symbol}&interval=1day&apikey={api_key}'
 
@@ -239,8 +257,25 @@ def stock_price(data: List[str]) -> List[Dict[str, Any]] | None:
             return None
 
         get_convert = response.json()
-        logger.info(f'Полученные данные: {get_convert}')
-        return get_convert if get_convert else None
+
+        for stock_symbol in data:
+            if stock_symbol in get_convert:
+                stock_data = get_convert[stock_symbol]
+                if 'price' in stock_data and stock_data['price'] is not None:
+                    try:
+                        stock_prices.append({'stock': stock_symbol, 'price': float(stock_data['price'])})
+                        logger.info(f'Успешно извлечена цена для {stock_symbol}: {stock_data["price"]}')
+                    except (ValueError, TypeError) as e:
+                        logger.error(f"Ошибка преобразования цены для {stock_symbol}: {stock_data['price']} - {e}")
+                        stock_prices.append({'stock': stock_symbol, 'price': None})
+                else:
+                    logger.warning(f"Не найдена цена акции {stock_symbol} в ответе: {stock_data}")
+                    stock_prices.append({'stock': stock_symbol, 'price': None})
+            else:
+                logger.warning(f"Акция {stock_symbol} не найдена в ответе API")
+                stock_prices.append({'stock': stock_symbol, 'price': None})
+
+        return stock_prices if stock_prices else None
 
     except requests.exceptions.RequestException as err:
         logger.error(f"При выполнении запроса произошла ошибка: {err}")
@@ -289,6 +324,8 @@ def sorted_by_range(data: List[Dict[str, Any]], date: datetime, date_range: str 
         logger.error(f'Ошибка при обработке временного диапазона "{date_range}"')
         raise ValueError
 
+    logger.debug(f'range from {start_of_range} to {date}')
+
     filtered_data = list(
         filter(
             lambda x: (
@@ -314,14 +351,7 @@ def get_expense_by_category(data: List[Dict[str, Any]]) -> List[Dict[str, Any]] 
 
     df = pd.DataFrame(data)
 
-    expenses = (
-        df[df['amount'] < 0]
-        .groupby('category')['amount']
-        .sum()
-        .abs()
-        .round(0)
-        .sort_values(ascending=False)  # Сортировка по убыванию
-    )
+    expenses = df[df['amount'] < 0].groupby('category')['amount'].sum().round(0).sort_values(ascending=False)
 
     return [{"category": category, "amount": int(total_amount)} for category, total_amount in expenses.items()]
 
@@ -338,15 +368,15 @@ def get_top_seven_category(data: List[Dict[str, Any]]) -> List[Dict[str, Any]] |
     exclude_values = ['Переводы', 'Бонусы', 'Наличные', 'Пополнения']
 
     result_df = (
-        df[~df['category'].isin(exclude_values)]
-        .assign(amount_abs=df['amount'].abs())
-        .sort_values('amount_abs', ascending=False)
+        df[(~df['category'].isin(exclude_values)) & (df['amount'] < 0)]
+        .sort_values('amount', ascending=True)  # ascending=True для отрицательных чисел
         .head(7)
-        .drop('amount_abs', axis=1)
     )
 
-    logger.debug(result_df.to_dict('records'))
-    return result_df.to_dict('records')
+    result = [{**record, 'amount': abs(record['amount'])} for record in result_df.to_dict('records')]
+
+    logger.debug(result)
+    return result
 
 
 @log_function
@@ -361,16 +391,12 @@ def get_other_category(data: List[Dict[str, Any]]) -> List[Dict[str, Any]] | Non
     exclude_values = ['Переводы', 'Бонусы', 'Наличные', 'Пополнения']
 
     result_df = (
-        df[~df['category'].isin(exclude_values)]
-        .assign(amount_abs=df['amount'].abs())
-        .sort_values('amount_abs', ascending=False)
-        .iloc[7:]  # Исправлено: iloc вместо ilock
-        .drop('amount_abs', axis=1)
+        df[~df['category'].isin(exclude_values) & (df['amount'] < 0)].sort_values('amount', ascending=True).iloc[7:]
     )
 
-    total_amount = result_df['amount'].sum()
+    total_amount = result_df['amount'].abs().sum()
 
-    result = result = [{"category": "Остальное", "amount": int(total_amount)}]
+    result = [{"category": "Остальное", "amount": int(total_amount)}]
 
     logger.debug(result)
     return result
@@ -387,15 +413,21 @@ def get_transfer_and_cash(data: List[Dict[str, Any]]) -> List[Dict[str, Any]] | 
 
     include_values = ['Переводы', 'Наличные']
 
-    result_df = (
-        df[df['category'].isin(include_values)]
-        .assign(amount_abs=df['amount'].abs())
-        .sort_values('amount_abs', ascending=False)
-        .drop('amount_abs', axis=1)
-    )
+    mask = df['category'].str.contains('|'.join(include_values), case=False, na=False)
 
-    logger.debug(result_df.to_dict('records'))
-    return result_df.to_dict('records')
+    logger.debug(f"Найдено категорий по маске: {df[mask]['category'].unique().tolist()}")
+    logger.debug(f"Отрицательные суммы: {df[df['amount'] < 0].shape[0]} транзакций")
+
+    filtered_df = df[mask & (df['amount'] < 0)].copy()
+
+    logger.debug(f"После фильтрации: {filtered_df.shape[0]} транзакций")
+
+    result_series = filtered_df.groupby('category')['amount'].sum().abs().round(0).sort_values(ascending=False)
+
+    result = [{'category': category, 'amount': int(amount)} for category, amount in result_series.items()]
+
+    logger.debug(result)
+    return result
 
 
 @log_function
@@ -407,19 +439,9 @@ def get_income(data: List[Dict[str, Any]]) -> List[Dict[str, Any]] | None:
 
     df = pd.DataFrame(data)
 
-    include_values = ['Бонусы', 'Пополнения']
+    result_series = df[(df['amount'] > 0)].groupby('description')['amount'].sum().round(0).sort_values(ascending=False)
 
-    result_series = (
-        df[df['category'].isin(include_values)]
-        .groupby('category')['amount']
-        .sum()
-        .abs()
-        .round(0)
-        .sort_values(ascending=False)
-    )
-
-    result = [{'category': category, 'amount': int(amount)}
-              for category, amount in result_series.items()]
+    result = [{'category': description, 'amount': int(amount)} for description, amount in result_series.items()]
 
     logger.debug(result)
     return result
@@ -434,16 +456,13 @@ def get_total_amount(data: List[Dict[str, Any]]) -> int | None:
 
     df = pd.DataFrame(data)
 
-    total_expense = (
-        df['amount']
-        .sum()
-        .round(0)
-    )
+    total_expense = df[df['amount'] < 0]['amount'].sum().round(0)
 
     result = int(abs(total_expense))
 
     logger.debug(result)
     return result
+
 
 @log_function
 def get_total_amount_income(data: List[Dict[str, Any]]) -> int | None:
@@ -454,13 +473,26 @@ def get_total_amount_income(data: List[Dict[str, Any]]) -> int | None:
 
     df = pd.DataFrame(data)
 
-    total_expense = (
-        df['amount']
-        .sum()
-        .round(0)
-    )
+    total_expense = df[df['amount'] > 0]['amount'].sum().round(0)
 
     result = int(abs(total_expense))
 
     logger.debug(result)
     return result
+
+
+def get_cashback(data: List[Dict[str, Any]]) -> List[Dict[str, Any]] | None:
+    """ """
+
+    if not data:
+        return None
+
+    df = pd.DataFrame(data)
+
+    cashback = df['cashback'].sum().round(0)
+
+    cashback_value = int(abs(cashback))
+
+    logger.debug(cashback_value)
+    result_dict = [{"category": "Кэшбэк", "amount": cashback_value}]
+    return result_dict

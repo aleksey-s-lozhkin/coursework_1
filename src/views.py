@@ -4,19 +4,22 @@ from datetime import datetime
 
 from src.utils import (
     exchange_rate,
+    get_cashback,
     get_expense,
+    get_expense_by_category,
+    get_income,
+    get_other_category,
+    get_top_seven_category,
+    get_total_amount,
+    get_total_amount_income,
+    get_transfer_and_cash,
     greeting,
     read_user_setting,
     read_xlsx,
     sorted_by_date,
+    sorted_by_range,
     stock_price,
     top_five,
-    sorted_by_range,
-    get_expense_by_category,
-    get_top_seven_category,
-    get_other_category,
-    get_transfer_and_cash,
-    get_income, get_total_amount, get_total_amount_income,
 )
 
 
@@ -75,7 +78,28 @@ def events(date: str, date_range: str = 'M') -> str:
     other_category = get_other_category(category_amount)
     transfer_and_cash_category = get_transfer_and_cash(category_amount)
     income_category = get_income(filtered_data)
-    total_amount_income = get_total_amount_income(income_category)
+    cashback_category = get_cashback(filtered_data)
+
+    if income_category and cashback_category:
+        combined_income = income_category + cashback_category
+    elif income_category:
+        combined_income = income_category
+    elif cashback_category:
+        combined_income = cashback_category
+    else:
+        combined_income = None
+
+    total_amount_income = get_total_amount_income(combined_income)
+
+    user_currencies = read_user_setting('user_currencies')
+    user_stocks = read_user_setting('user_stocks')
+
+    currency_rates = exchange_rate(user_currencies)
+
+    stock_prices = stock_price(user_stocks)
+
+    # currency_rates = []
+    # stock_prices =[]
 
     main_category.extend(other_category)
     expenses = {
@@ -83,6 +107,8 @@ def events(date: str, date_range: str = 'M') -> str:
         'main': main_category,
         'transfers_and_cash': transfer_and_cash_category,
     }
+
+    income_category.extend(cashback_category)
 
     income = {
         'total_amount': total_amount_income,
@@ -92,6 +118,8 @@ def events(date: str, date_range: str = 'M') -> str:
     result = {
         'expenses': expenses,
         'income': income,
+        'currency_rates': currency_rates,
+        'stock_prices': stock_prices,
     }
 
     return json.dumps(result, ensure_ascii=False, indent=2)
