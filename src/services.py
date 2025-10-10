@@ -1,4 +1,3 @@
-import re
 import json
 import logging
 import os
@@ -48,33 +47,50 @@ def services_log_function(func):
 
 @services_log_function
 def get_last_day(year: int, month: int) -> datetime:
-    """Функция получает последний день указанного месяца и года. Возвращает значение даты в формате datetime"""
+    """Функция получает последний день указанного месяца и года. Возвращает значение даты в формате datetime."""
 
+    # Получаем количество дней в месяце (последний день месяца)
     last_day_num = monthrange(year, month)[1]
+
+    # Создаем объект datetime для последнего дня месяца
+    # с временем 23:59:59 (конец дня)
     last_day = datetime(year, month, last_day_num, 23, 59, 59)
+
     return last_day
 
 
 @services_log_function
 def get_boosted_cashback_categories(data: str, year: str, month: str) -> str | None:
-    """ "Функция для анализа выгодности категорий повышенного кешбэка. На вход функции поступают данные для анализа,
+    """Функция для анализа выгодности категорий повышенного кешбэка. На вход функции поступают данные для анализа,
     год и месяц. На выходе — JSON с анализом, сколько на каждой категории можно заработать кешбэка в указанном месяце
     года."""
 
+    # Получаем последний день указанного месяца
     date_value = get_last_day(int(year), int(month))
 
+    # Читаем данные из Excel файла
     raw_data = read_xlsx(data, 0)
 
+    # Фильтруем данные по указанному месяцу
     filtered_data = sorted_by_range(raw_data, date_value, 'M')
 
+    # Если после фильтрации данных нет, возвращаем None
     if not filtered_data:
         return None
 
+    # Создаем DataFrame из отфильтрованных данных
     df = pd.DataFrame(filtered_data)
+
+    # Группируем по категориям, суммируем кешбэк, округляем и сортируем по убыванию
     result_series = df.groupby('category')['cashback'].sum().round(0).sort_values(ascending=False)
+
+    # Создаем словарь {категория: сумма}, исключая нулевые значения
     result = {category: int(cashback) for category, cashback in result_series.items() if cashback > 0}
 
+    # Логируем результат для отладки
     services_logger.debug(result)
+
+    # Возвращаем результат в формате JSON
     return json.dumps(result, indent=2, ensure_ascii=False)
 
 
@@ -118,9 +134,8 @@ def simple_search(request_str: str, transactions: List[Dict[str, Any]]) -> str |
 
     search_terms = request_str.split()
 
-    mask = (
-            df['category'].str.contains('|'.join(search_terms), case=False, na=False) |
-            df['description'].str.contains('|'.join(search_terms), case=False, na=False)
+    mask = df['category'].str.contains('|'.join(search_terms), case=False, na=False) | df['description'].str.contains(
+        '|'.join(search_terms), case=False, na=False
     )
 
     filtered_df = df[mask]
@@ -131,7 +146,7 @@ def simple_search(request_str: str, transactions: List[Dict[str, Any]]) -> str |
 
 
 @services_log_function
-def phone_search(data_list:List[Dict[str, Any]]) -> str | None:
+def phone_search(data_list: List[Dict[str, Any]]) -> str | None:
     """Функция возвращает JSON со всеми транзакциями, содержащими в описании мобильные номера."""
 
     if not data_list:
@@ -150,7 +165,7 @@ def phone_search(data_list:List[Dict[str, Any]]) -> str | None:
 
 
 @services_log_function
-def  person_search(data_list: List[Dict[str, Any]]) -> str | None:
+def person_search(data_list: List[Dict[str, Any]]) -> str | None:
     """Функция возвращает JSON со всеми транзакциями, которые относятся к переводам физлицам."""
 
     if not data_list:
@@ -160,8 +175,9 @@ def  person_search(data_list: List[Dict[str, Any]]) -> str | None:
 
     pattern = r'[А-ЯЁ][а-яё]+\s+[А-ЯЁ]\.'
 
-    mask = (df['description'].str.contains(pattern, na=False) &
-            df['category'].str.contains('Переводы', case=False, na=False))
+    mask = df['description'].str.contains(pattern, na=False) & df['category'].str.contains(
+        'Переводы', case=False, na=False
+    )
     filtered_df = df[mask]
     filtered_list = filtered_df.to_dict('records')
 

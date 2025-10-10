@@ -1,10 +1,6 @@
 import os
 
-from src.services import (get_boosted_cashback_categories,
-                          investment_bank,
-                          simple_search,
-                          phone_search,
-                          person_search)
+from src.services import get_boosted_cashback_categories, investment_bank, simple_search, phone_search, person_search
 from src.utils import read_xlsx
 from src.views import events, general
 

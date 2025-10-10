@@ -3,7 +3,7 @@ import logging
 import os
 from datetime import datetime, timedelta
 from functools import wraps
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 import pandas as pd
 import requests
@@ -92,7 +92,7 @@ def read_user_setting(setting: str) -> List[str] | None:
 
 
 @log_function
-def read_xlsx(path: str, sheet: int | str = 0) -> List[Dict[str, Any]]:
+def read_xlsx(path: str, sheet: Union[int, str] = 0) -> List[Dict[str, Any]]:
     """ "Функция читает данные из xlsx файла и возвращает список словарей с транзакциями"""
 
     try:
