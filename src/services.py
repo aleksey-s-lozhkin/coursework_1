@@ -5,6 +5,7 @@ from calendar import monthrange
 from datetime import datetime
 from functools import wraps
 from typing import Any, Dict, List
+from math import ceil
 
 import pandas as pd
 
@@ -95,7 +96,7 @@ def get_boosted_cashback_categories(data: str, year: str, month: str) -> str | N
 
 
 @services_log_function
-def investment_bank(date: str, transactions: List[Dict[str, Any]], limit: int) -> str:
+def investment_bank(date: str, transactions: List[Dict[str, Any]], limit: int) -> str | None:
     """Функция, которая возвращает сумму, которую удалось бы отложить в «Инвесткопилку». Функция получает на вход
     три аргумента: month — месяц, для которого рассчитывается отложенная сумма (строка в формате 'YYYY-MM').
     transactions — список словарей, содержащий информацию о транзакциях, в которых содержатся следующие поля:
@@ -103,22 +104,40 @@ def investment_bank(date: str, transactions: List[Dict[str, Any]], limit: int) -
     Сумма операции — сумма транзакции в оригинальной валюте (число).
     limit — предел, до которого нужно округлять суммы операций (целое число)."""
 
+    # Парсим год и месяц из входной даты
     year = int(date.split('-')[0])
     month = int(date.split('-')[1])
+
+    # Получаем последний день месяца для фильтрации
     date_value = get_last_day(int(year), int(month))
 
+    # Проверяем, что есть данные для поиска
+    if not transactions:
+        return None
+
+    # Фильтруем транзакции по указанному месяцу
     filtered_data = sorted_by_range(transactions, date_value, 'M')
 
+    # Создаем DataFrame из отфильтрованных данных
     df = pd.DataFrame(filtered_data)
-    expenses_df = df[df['amount'] < 0]
-    result_df = expenses_df.set_index('date')['amount'].to_dict()
-    services_logger.debug(result_df)
 
+    # Оставляем только траты (отрицательные суммы)
+    expenses_df = df[df['amount'] < 0]
+
+    # Преобразуем в словарь {дата: сумма} для удобства
+    result_df = expenses_df.set_index('date')['amount'].to_dict()
+    services_logger.debug(f'Найдено {result_df} транзакций')
+
+    # Вычисляем сумму для инвестирования
     investment = 0
     for amount in result_df.values():
-        investment += abs(amount) // limit
+        # Расчет суммы в копилку
+        exp_sum = ceil(abs(amount) / limit) * limit
+        investment += exp_sum - abs(amount)
 
     services_logger.info(investment)
+
+    # Возвращаем результат в формате JSON
     return json.dumps({"investment": investment}, indent=2, ensure_ascii=False)
 
 
@@ -127,21 +146,33 @@ def simple_search(request_str: str, transactions: List[Dict[str, Any]]) -> str |
     """Функция получает строку для поиска, возвращается JSON-ответ со всеми транзакциями, содержащими запрос
     в описании или категории."""
 
+    # Проверяем, что есть данные для поиска
     if not transactions:
         return None
 
+    # Преобразуем список транзакций в DataFrame для удобства обработки
     df = pd.DataFrame(transactions)
 
+    # Разбиваем поисковый запрос на отдельные слова
     search_terms = request_str.split()
 
+    # Создаем маску для фильтрации: ищем в столбцах category и description
+    # Используем | (ИЛИ) для поиска по любому из столбцов
+    # case=False для регистронезависимого поиска, na=False для игнорирования NaN
     mask = df['category'].str.contains('|'.join(search_terms), case=False, na=False) | df['description'].str.contains(
         '|'.join(search_terms), case=False, na=False
     )
 
+    # Применяем маску для фильтрации DataFrame
     filtered_df = df[mask]
+
+    # Конвертируем отфильтрованный DataFrame обратно в список словарей
     filtered_list = filtered_df.to_dict('records')
 
+    # Логируем количество найденных транзакций
     services_logger.debug(f"Найдено {len(filtered_list)} транзакций")
+
+    # Возвращаем результат в формате JSON
     return json.dumps(filtered_list, indent=2, ensure_ascii=False)
 
 
@@ -149,18 +180,30 @@ def simple_search(request_str: str, transactions: List[Dict[str, Any]]) -> str |
 def phone_search(data_list: List[Dict[str, Any]]) -> str | None:
     """Функция возвращает JSON со всеми транзакциями, содержащими в описании мобильные номера."""
 
+    # Проверка на пустой список транзакций
     if not data_list:
         return None
 
+    # Создаем DataFrame для удобства обработки данных
     df = pd.DataFrame(data_list)
 
+    # Регулярное выражение для поиска российских номеров телефонов
+    # Поддерживает форматы: +7, 8, с разными разделителями
     pattern = r'[\+]?[7-8]?[\s\-]?\(?\d{3}\)?[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}'
 
+    # Создаем маску для фильтрации: ищем номера в описании транзакций
     mask = df['description'].str.contains(pattern, na=False)
+
+    # Применяем маску для отбора транзакций с номерами телефонов
     filtered_df = df[mask]
+
+    # Конвертируем результат обратно в список словарей
     filtered_list = filtered_df.to_dict('records')
 
+    # Логируем количество найденных транзакций
     services_logger.debug(f"Найдено {len(filtered_list)} транзакций")
+
+    # Возвращаем результат в формате JSON
     return json.dumps(filtered_list, indent=2, ensure_ascii=False)
 
 
@@ -168,18 +211,32 @@ def phone_search(data_list: List[Dict[str, Any]]) -> str | None:
 def person_search(data_list: List[Dict[str, Any]]) -> str | None:
     """Функция возвращает JSON со всеми транзакциями, которые относятся к переводам физлицам."""
 
+    # Проверка на пустой список транзакций
     if not data_list:
         return None
 
+    # Создаем DataFrame для обработки данных
     df = pd.DataFrame(data_list)
 
+    # Регулярное выражение для поиска ФИО в формате "Фамилия И.О."
+    # [А-ЯЁ][а-яё]+ - слово с заглавной буквы (фамилия)
+    # \s+ - один или более пробелов
+    # [А-ЯЁ]\. - инициал с точкой (например, "И.")
     pattern = r'[А-ЯЁ][а-яё]+\s+[А-ЯЁ]\.'
 
+    # Создаем комбинированную маску: ищем ФИО в описании И переводы в категории
     mask = df['description'].str.contains(pattern, na=False) & df['category'].str.contains(
         'Переводы', case=False, na=False
     )
+
+    # Применяем маску для фильтрации транзакций
     filtered_df = df[mask]
+
+    # Конвертируем результат в список словарей
     filtered_list = filtered_df.to_dict('records')
 
+    # Логируем количество найденных транзакций
     services_logger.debug(f"Найдено {len(filtered_list)} транзакций")
+
+    # Возвращаем результат в формате JSON
     return json.dumps(filtered_list, indent=2, ensure_ascii=False)
