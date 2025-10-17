@@ -223,7 +223,6 @@ def test_spending_by_weekday_success(sample_transactions):
     """Тест успешного получения средних трат по дням недели"""
     result = spending_by_weekday(sample_transactions, '15.03.2024')
 
-
     assert isinstance(result, pd.DataFrame)
     assert 'День недели' in result.columns
     assert 'Сумма операции' in result.columns
@@ -252,7 +251,6 @@ def test_spending_by_weekday_invalid_date(sample_transactions):
 def test_spending_by_workday_success(sample_transactions):
     """Тест успешного получения средних трат по рабочим/выходным дням"""
     result = spending_by_workday(sample_transactions, '15.03.2024')
-
 
     assert isinstance(result, pd.DataFrame)
     assert 'Тип дня' in result.columns

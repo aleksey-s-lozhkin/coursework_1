@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import datetime
 from functools import wraps
-from typing import Optional, Union, Any
+from typing import Any, Optional, Union
 
 import pandas as pd
 from dateutil.relativedelta import relativedelta

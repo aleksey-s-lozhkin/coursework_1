@@ -182,9 +182,10 @@ def sorted_by_date(data: List[Dict[str, Any]], date: datetime) -> List[Dict[str,
 
     # Фильтруем данные: оставляем транзакции в диапазоне [начало месяца, переданная дата]
     filtered_data: List[Dict[str, Any]] = [
-        transaction for transaction in data
-        if 'date' in transaction and
-        (lambda d: start_of_month <= d <= date if d else False)(
+        transaction
+        for transaction in data
+        if 'date' in transaction
+        and (lambda d: start_of_month <= d <= date if d else False)(
             datetime.strptime(transaction['date'], '%d.%m.%Y %H:%M:%S')
         )
     ]
@@ -422,9 +423,10 @@ def sorted_by_range(data: List[Dict[str, Any]], date: datetime, date_range: str 
 
     # Фильтруем данные: оставляем транзакции в диапазоне [start_of_range, date]
     filtered_data: List[Dict[str, Any]] = [
-        transaction for transaction in data
-        if 'date' in transaction and
-        (lambda d: start_of_range <= d <= date if d else False)(
+        transaction
+        for transaction in data
+        if 'date' in transaction
+        and (lambda d: start_of_range <= d <= date if d else False)(
             datetime.strptime(transaction['date'], '%d.%m.%Y %H:%M:%S')
         )
     ]
