@@ -57,15 +57,18 @@ def test_data():
         {'invalid_key': 'value'},
     ]
 
+
 @pytest.fixture
 def january_2021_date():
     """Фикстура с датой января 2021"""
     return datetime(2021, 1, 31, 23, 59, 59)
 
+
 @pytest.fixture
 def december_2021_date():
     """Фикстура с датой декабря 2021"""
     return datetime(2021, 12, 31, 23, 59, 59)
+
 
 @pytest.fixture
 def mid_january_2021_date():
@@ -87,6 +90,7 @@ def expense_data():
         {'category': 'investment', 'amount': 5000},  # доход
     ]
 
+
 @pytest.fixture
 def expense_data_with_positive_only():
     """Фикстура только с положительными суммами (доходами)"""
@@ -95,6 +99,7 @@ def expense_data_with_positive_only():
         {'category': 'bonus', 'amount': 5000},
         {'category': 'investment', 'amount': 3000},
     ]
+
 
 @pytest.fixture
 def expense_data_with_negative_only():
@@ -105,6 +110,7 @@ def expense_data_with_negative_only():
         {'category': 'rent', 'amount': -30000},
     ]
 
+
 @pytest.fixture
 def expense_data_empty_category():
     """Фикстура с данными, где есть пустые категории"""
@@ -114,6 +120,7 @@ def expense_data_empty_category():
         {'category': 'transport', 'amount': -300},
         {'category': None, 'amount': -1000},
     ]
+
 
 @pytest.fixture
 def expense_data_single_category():
@@ -135,8 +142,8 @@ def top_category_data():
         {'category': 'Развлечения', 'amount': -1000},
         {'category': 'Транспорт', 'amount': -300},
         {'category': 'Переводы', 'amount': -5000},  # исключаемая категория
-        {'category': 'Бонусы', 'amount': -100},     # исключаемая категория
-        {'category': 'Наличные', 'amount': -200},   # исключаемая категория
+        {'category': 'Бонусы', 'amount': -100},  # исключаемая категория
+        {'category': 'Наличные', 'amount': -200},  # исключаемая категория
         {'category': 'Пополнения', 'amount': -50},  # исключаемая категория
         {'category': 'Жилье', 'amount': -30000},
         {'category': 'Здоровье', 'amount': -2500},
@@ -146,8 +153,9 @@ def top_category_data():
         {'category': 'Техника', 'amount': -8000},
         {'category': 'Красота', 'amount': -2000},
         {'category': 'Спорт', 'amount': -3000},
-        {'category': 'salary', 'amount': 10000},    # доход - должен игнорироваться
+        {'category': 'salary', 'amount': 10000},  # доход - должен игнорироваться
     ]
+
 
 @pytest.fixture
 def top_category_data_less_than_seven():
@@ -160,6 +168,7 @@ def top_category_data_less_than_seven():
         {'category': 'Здоровье', 'amount': -2500},
     ]
 
+
 @pytest.fixture
 def top_category_data_with_excluded_only():
     """Фикстура только с исключаемыми категориями"""
@@ -170,6 +179,7 @@ def top_category_data_with_excluded_only():
         {'category': 'Пополнения', 'amount': -50},
     ]
 
+
 @pytest.fixture
 def top_category_data_with_positive_only():
     """Фикстура только с положительными суммами"""
@@ -178,6 +188,7 @@ def top_category_data_with_positive_only():
         {'category': 'Транспорт', 'amount': 500},
         {'category': 'Развлечения', 'amount': 1000},
     ]
+
 
 @pytest.fixture
 def top_category_data_single_large_expense():
@@ -199,8 +210,8 @@ def other_category_data():
         {'category': 'Развлечения', 'amount': -1000},
         {'category': 'Транспорт', 'amount': -300},
         {'category': 'Переводы', 'amount': -5000},  # исключаемая категория
-        {'category': 'Бонусы', 'amount': -100},     # исключаемая категория
-        {'category': 'Наличные', 'amount': -200},   # исключаемая категория
+        {'category': 'Бонусы', 'amount': -100},  # исключаемая категория
+        {'category': 'Наличные', 'amount': -200},  # исключаемая категория
         {'category': 'Пополнения', 'amount': -50},  # исключаемая категория
         {'category': 'Жилье', 'amount': -30000},
         {'category': 'Здоровье', 'amount': -2500},
@@ -213,8 +224,9 @@ def other_category_data():
         {'category': 'Книги', 'amount': -1500},
         {'category': 'Подарки', 'amount': -1200},
         {'category': 'Рестораны', 'amount': -1800},
-        {'category': 'salary', 'amount': 10000},    # доход - должен игнорироваться
+        {'category': 'salary', 'amount': 10000},  # доход - должен игнорироваться
     ]
+
 
 @pytest.fixture
 def other_category_data_less_than_eight():
@@ -229,6 +241,7 @@ def other_category_data_less_than_eight():
         {'category': 'Образование', 'amount': -15000},
     ]
 
+
 @pytest.fixture
 def other_category_data_exactly_seven():
     """Фикстура с точно 7 транзакциями"""
@@ -242,6 +255,7 @@ def other_category_data_exactly_seven():
         {'category': 'Образование', 'amount': -15000},
     ]
 
+
 @pytest.fixture
 def other_category_data_with_excluded_only():
     """Фикстура только с исключаемыми категориями"""
@@ -252,6 +266,7 @@ def other_category_data_with_excluded_only():
         {'category': 'Пополнения', 'amount': -50},
     ]
 
+
 @pytest.fixture
 def other_category_data_with_positive_only():
     """Фикстура только с положительными суммами"""
@@ -260,6 +275,7 @@ def other_category_data_with_positive_only():
         {'category': 'Транспорт', 'amount': 500},
         {'category': 'Развлечения', 'amount': 1000},
     ]
+
 
 @pytest.fixture
 def other_category_data_single_category_multiple():
@@ -292,6 +308,7 @@ def transfer_cash_data():
         {'category': 'Наличные', 'amount': 500},  # положительная - должна игнорироваться
     ]
 
+
 @pytest.fixture
 def transfer_cash_data_only_transfers():
     """Фикстура только с переводами"""
@@ -300,6 +317,7 @@ def transfer_cash_data_only_transfers():
         {'category': 'Переводы', 'amount': -2000},
         {'category': 'Переводы', 'amount': -1500},
     ]
+
 
 @pytest.fixture
 def transfer_cash_data_only_cash():
@@ -310,15 +328,17 @@ def transfer_cash_data_only_cash():
         {'category': 'Наличные', 'amount': -200},
     ]
 
+
 @pytest.fixture
 def transfer_cash_data_case_insensitive():
     """Фикстура с разным регистром категорий"""
     return [
         {'category': 'переводы', 'amount': -1000},  # нижний регистр
         {'category': 'ПЕРЕВОДЫ', 'amount': -2000},  # верхний регистр
-        {'category': 'НаличныЕ', 'amount': -500},   # смешанный регистр
-        {'category': 'наличные', 'amount': -300},   # нижний регистр
+        {'category': 'НаличныЕ', 'amount': -500},  # смешанный регистр
+        {'category': 'наличные', 'amount': -300},  # нижний регистр
     ]
+
 
 @pytest.fixture
 def transfer_cash_data_no_matching():
@@ -328,6 +348,7 @@ def transfer_cash_data_no_matching():
         {'category': 'Транспорт', 'amount': -500},
         {'category': 'Развлечения', 'amount': -200},
     ]
+
 
 @pytest.fixture
 def income_data():
@@ -342,6 +363,7 @@ def income_data():
         {'description': 'Транспорт', 'amount': -500},  # расход - должен игнорироваться
     ]
 
+
 @pytest.fixture
 def income_data_only_expenses():
     """Фикстура только с расходами"""
@@ -350,6 +372,7 @@ def income_data_only_expenses():
         {'description': 'Транспорт', 'amount': -500},
         {'description': 'Развлечения', 'amount': -1000},
     ]
+
 
 @pytest.fixture
 def income_data_single_description():
@@ -360,13 +383,14 @@ def income_data_single_description():
         {'description': 'Зарплата', 'amount': 3000},
     ]
 
+
 @pytest.fixture
 def income_data_mixed_case():
     """Фикстура с разным регистром описаний"""
     return [
         {'description': 'зарплата', 'amount': 10000},  # нижний регистр
-        {'description': 'Зарплата', 'amount': 5000},   # смешанный регистр
-        {'description': 'ЗАРПЛАТА', 'amount': 3000},   # верхний регистр
+        {'description': 'Зарплата', 'amount': 5000},  # смешанный регистр
+        {'description': 'ЗАРПЛАТА', 'amount': 3000},  # верхний регистр
     ]
 
 
@@ -378,8 +402,9 @@ def total_amount_data():
         {'amount': -500},
         {'amount': -2000},
         {'amount': 1000},  # доход - должен игнорироваться
-        {'amount': 500},   # доход - должен игнорироваться
+        {'amount': 500},  # доход - должен игнорироваться
     ]
+
 
 @pytest.fixture
 def total_amount_data_only_income():
@@ -389,6 +414,7 @@ def total_amount_data_only_income():
         {'amount': 500},
         {'amount': 3000},
     ]
+
 
 @pytest.fixture
 def total_amount_data_mixed():
@@ -401,6 +427,7 @@ def total_amount_data_mixed():
         {'amount': -1500},
     ]
 
+
 @pytest.fixture
 def total_amount_data_with_decimals():
     """Фикстура с десятичными числами"""
@@ -410,12 +437,14 @@ def total_amount_data_with_decimals():
         {'amount': -1500.8},
     ]
 
+
 @pytest.fixture
 def total_amount_data_single_expense():
     """Фикстура с одним расходом"""
     return [
         {'amount': -5000},
     ]
+
 
 @pytest.fixture
 def total_income_data():
@@ -426,12 +455,14 @@ def total_income_data():
         {'category': 'Инвестиции', 'amount': 3000},
     ]
 
+
 @pytest.fixture
 def total_income_data_single():
     """Фикстура с одним доходом"""
     return [
         {'category': 'Зарплата', 'amount': 15000},
     ]
+
 
 @pytest.fixture
 def total_income_data_with_negative():
@@ -440,6 +471,7 @@ def total_income_data_with_negative():
         {'category': 'Зарплата', 'amount': 10000},
         {'category': 'Штраф', 'amount': -500},  # отрицательный доход
     ]
+
 
 @pytest.fixture
 def total_income_data_empty_dicts():
@@ -450,6 +482,7 @@ def total_income_data_empty_dicts():
         {},
     ]
 
+
 @pytest.fixture
 def total_income_data_large_numbers():
     """Фикстура с большими числами"""
@@ -458,6 +491,7 @@ def total_income_data_large_numbers():
         {'category': 'Бонус', 'amount': 50000},
         {'category': 'Инвестиции', 'amount': 75000},
     ]
+
 
 @pytest.fixture
 def cashback_data():
@@ -469,12 +503,14 @@ def cashback_data():
         {'cashback': 0, 'amount': -1000, 'category': 'Жилье'},  # нулевой кэшбэк
     ]
 
+
 @pytest.fixture
 def cashback_data_single():
     """Фикстура с одним элементом кэшбэка"""
     return [
         {'cashback': 500, 'amount': -5000, 'category': 'Еда'},
     ]
+
 
 @pytest.fixture
 def cashback_data_decimals():
@@ -485,6 +521,7 @@ def cashback_data_decimals():
         {'cashback': 200.8, 'amount': -2000, 'category': 'Развлечения'},
     ]
 
+
 @pytest.fixture
 def cashback_data_negative():
     """Фикстура с отрицательным кэшбэком (нестандартный случай)"""
@@ -493,6 +530,7 @@ def cashback_data_negative():
         {'cashback': -50, 'amount': -500, 'category': 'Транспорт'},  # отрицательный кэшбэк
         {'cashback': 200, 'amount': -2000, 'category': 'Развлечения'},
     ]
+
 
 @pytest.fixture
 def cashback_data_no_cashback():

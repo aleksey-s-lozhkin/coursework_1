@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import datetime
 from functools import wraps
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 import pandas as pd
 from dateutil.relativedelta import relativedelta
@@ -58,7 +58,7 @@ def reports_log_function(func):
     return wrapper
 
 
-def decorator_output_to(filename: str = None):
+def decorator_output_to(filename: Optional[str] = None) -> Any:
     """Декоратор для функций-отчетов, записывающий в файл результат (в формате json), который возвращает функция,
     формирующая отчет. Декоратор без параметра — записывает данные отчета в файл с названием
     имя_декорируемой_функции.json в папку data проекта. Декоратор с параметром — принимает имя файла
@@ -103,12 +103,12 @@ def get_dataframe_from_excel(path: str, sheet: Union[int, str] = 0) -> pd.DataFr
     # Проверка существования файла
     if not os.path.exists(path):
         reports_logger.error(f'Файл {path} не найден')
-        return None
+        return pd.DataFrame()
 
     # Проверка, что файл не пустой
     if os.path.getsize(path) == 0:
         reports_logger.error(f'Файл {path} пустой')
-        return None
+        return pd.DataFrame()
 
     try:
         # Чтение Excel файла
@@ -122,37 +122,37 @@ def get_dataframe_from_excel(path: str, sheet: Union[int, str] = 0) -> pd.DataFr
 
     except FileNotFoundError:
         reports_logger.error(f'Файл {path} не найден')
-        return None
+        return pd.DataFrame()
     except ValueError as e:
         reports_logger.error(f"Ошибка в данных файла или лист '{sheet}' не найден: {e}")
-        return None
+        return pd.DataFrame()
     except PermissionError:
         reports_logger.error(f"Нет прав доступа к файлу {path}")
-        return None
+        return pd.DataFrame()
     except ImportError as e:
         reports_logger.error(f"Отсутствуют необходимые библиотеки: {e}")
-        return None
+        return pd.DataFrame()
     except Exception as e:
         reports_logger.error(f"Неизвестная ошибка при чтении файла: {e}")
-        return None
+        return pd.DataFrame()
 
 
 @reports_log_function
-def get_data_by_range(transactions: pd.DataFrame, start_date: datetime, end_date: datetime) -> pd.DataFrame | None:
+def get_data_by_range(transactions: pd.DataFrame, start_date: datetime, end_date: datetime) -> pd.DataFrame:
     """Функция возвращает DataFrame за определенный период из переданного ей DataFrame"""
 
     # Проверка входных данных
     if transactions.empty:
         reports_logger.debug('Передан пустой DataFrame')
-        return None
+        return pd.DataFrame()
 
     if not start_date or not end_date:
         reports_logger.debug('Начальная или конечная дата для фильтрации отсутствуют')
-        return None
+        return pd.DataFrame()
 
     if start_date > end_date:
         reports_logger.debug('Начальная дата больше конечной')
-        return None
+        return pd.DataFrame()
 
     try:
         transactions_copy = transactions.copy()
@@ -166,15 +166,15 @@ def get_data_by_range(transactions: pd.DataFrame, start_date: datetime, end_date
 
     except KeyError as err:
         reports_logger.debug(f'Отсутствует необходимый столбец: {err}')
-        return None
+        return pd.DataFrame()
     except Exception as err:
         reports_logger.debug(f'Ошибка при фильтрации DataFrame: {err}')
-        return None
+        return pd.DataFrame()
 
 
 @reports_log_function
 @decorator_output_to(filename=None)
-def spending_by_category(transactions: pd.DataFrame, category: str, date: Optional[str] = None) -> pd.DataFrame | None:
+def spending_by_category(transactions: pd.DataFrame, category: str, date: Optional[str] = None) -> pd.DataFrame:
     """Возвращает траты по указанной категории за последние три месяца от указанной даты"""
 
     # Проверка входных данных
@@ -201,7 +201,7 @@ def spending_by_category(transactions: pd.DataFrame, category: str, date: Option
         target_date = date_obj - relativedelta(months=3)
     except NameError as err:
         reports_logger.error(f'Ошибка вычисления начальной даты: {err}')
-        return None
+        return pd.DataFrame()
 
     reports_logger.debug(f'Получаем данные в диапазоне дат от {target_date} до {date_obj}')
 
@@ -216,7 +216,7 @@ def spending_by_category(transactions: pd.DataFrame, category: str, date: Option
         # Фильтруем по категории
         if 'Категория' not in filtered_df.columns:
             reports_logger.error('В данных отсутствует столбец "Категория"')
-            return None
+            return pd.DataFrame()
 
         result_df = filtered_df[filtered_df['Категория'] == category]
 
@@ -225,12 +225,12 @@ def spending_by_category(transactions: pd.DataFrame, category: str, date: Option
 
     except Exception as e:
         reports_logger.error(f'Ошибка при фильтрации данных: {e}')
-        return None
+        return pd.DataFrame()
 
 
 @reports_log_function
 @decorator_output_to(filename=None)
-def spending_by_weekday(transactions: pd.DataFrame, date: Optional[str] = None) -> pd.DataFrame | None:
+def spending_by_weekday(transactions: pd.DataFrame, date: Optional[str] = None) -> pd.DataFrame:
     """Возвращает средние траты в каждый из дней недели за последние три месяца от переданной даты"""
 
     # Проверка входных данных
@@ -280,12 +280,12 @@ def spending_by_weekday(transactions: pd.DataFrame, date: Optional[str] = None) 
 
     except Exception as e:
         reports_logger.error(f'Ошибка при при работе с данными: {e}')
-        return None
+        return pd.DataFrame()
 
 
 @reports_log_function
 @decorator_output_to(filename=None)  # Поправить после реализации partial
-def spending_by_workday(transactions: pd.DataFrame, date: Optional[str] = None) -> pd.DataFrame | None:
+def spending_by_workday(transactions: pd.DataFrame, date: Optional[str] = None) -> pd.DataFrame:
     """Функция выводит средние траты в рабочий и в выходной день за последние три месяца (от переданной даты)."""
 
     # Проверка входных данных
@@ -338,4 +338,4 @@ def spending_by_workday(transactions: pd.DataFrame, date: Optional[str] = None) 
 
     except Exception as e:
         reports_logger.error(f'Ошибка при при работе с данными: {e}')
-        return None
+        return pd.DataFrame()

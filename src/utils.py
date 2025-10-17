@@ -114,6 +114,7 @@ def read_user_setting(setting: str) -> List[str] | None:
         logger.error(f"Ошибка при работе с JSON в файле {user_setting_config}")
         raise
 
+
 @log_function
 def read_xlsx(path: str, sheet: Union[int, str] = 0) -> List[Dict[str, Any]]:
     """ "Функция читает данные из xlsx файла и возвращает список словарей с транзакциями"""
@@ -148,7 +149,15 @@ def read_xlsx(path: str, sheet: Union[int, str] = 0) -> List[Dict[str, Any]]:
         logger.info("Колонки переименованы")
 
         # Конвертируем DataFrame в список словарей и возвращаем
-        return df.to_dict('records')
+        records = df.to_dict('records')
+        # Преобразуем каждый словарь, чтобы ключи были строками
+        result = []
+        for record in records:
+            new_record = {}
+            for key, value in record.items():
+                new_record[str(key)] = value
+            result.append(new_record)
+        return result
 
     # Обрабатываем случай отсутствия файла
     except FileNotFoundError:
@@ -172,19 +181,13 @@ def sorted_by_date(data: List[Dict[str, Any]], date: datetime) -> List[Dict[str,
     start_of_month = date.replace(day=1, hour=0, minute=0, second=0)
 
     # Фильтруем данные: оставляем транзакции в диапазоне [начало месяца, переданная дата]
-    filtered_data = list(
-        filter(
-            lambda x: (
-                # Проверяем наличие ключа 'date' в словаре транзакции
-                'date' in x
-                # Преобразуем строку даты в datetime и проверяем попадание в диапазон
-                and (lambda d: start_of_month <= d <= date if d else False)(
-                    datetime.strptime(x['date'], '%d.%m.%Y %H:%M:%S')
-                )
-            ),
-            data,  # Исходный список транзакций
+    filtered_data: List[Dict[str, Any]] = [
+        transaction for transaction in data
+        if 'date' in transaction and
+        (lambda d: start_of_month <= d <= date if d else False)(
+            datetime.strptime(transaction['date'], '%d.%m.%Y %H:%M:%S')
         )
-    )
+    ]
 
     # Возвращаем отфильтрованный список транзакций
     return filtered_data
@@ -376,12 +379,12 @@ def get_expense(data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     expenses = data_frame[data_frame['amount'] < 0].groupby('card')['amount'].sum().abs().round(2)
 
     # Формируем результат в нужном формате
-    result = []
+    result: List[Dict[str, Any]] = []
     for card, total_amount in expenses.items():
         # Вычисляем кэшбэк 1% от суммы трат
         cashback = round(total_amount * 0.01, 2)
         # Добавляем информацию по карте (последние цифры, сумма трат, кэшбэк)
-        result.append({"last_digits": card[1:], "total_spent": float(total_amount), "cashback": float(cashback)})
+        result.append({"last_digits": str(card)[1:], "total_spent": float(total_amount), "cashback": float(cashback)})
 
     return result
 
@@ -418,19 +421,13 @@ def sorted_by_range(data: List[Dict[str, Any]], date: datetime, date_range: str 
     logger.debug(f'Диапазон от {start_of_range} до {date}')
 
     # Фильтруем данные: оставляем транзакции в диапазоне [start_of_range, date]
-    filtered_data = list(
-        filter(
-            lambda x: (
-                # Проверяем наличие поля 'date' в транзакции
-                'date' in x
-                # Парсим строку даты и проверяем попадание в диапазон
-                and (lambda d: start_of_range <= d <= date if d else False)(
-                    datetime.strptime(x['date'], '%d.%m.%Y %H:%M:%S')
-                )
-            ),
-            data,  # Исходный список транзакций
+    filtered_data: List[Dict[str, Any]] = [
+        transaction for transaction in data
+        if 'date' in transaction and
+        (lambda d: start_of_range <= d <= date if d else False)(
+            datetime.strptime(transaction['date'], '%d.%m.%Y %H:%M:%S')
         )
-    )
+    ]
 
     # Логируем отфильтрованные данные и возвращаем результат
     logger.debug(f'Получено {filtered_data} транзакций')
@@ -453,7 +450,10 @@ def get_expense_by_category(data: List[Dict[str, Any]]) -> List[Dict[str, Any]] 
     expenses = df[df['amount'] < 0].groupby('category')['amount'].sum().round(0).sort_values(ascending=False)
 
     # Преобразование результата в список словарей с категориями и суммами
-    return [{"category": category, "amount": int(total_amount)} for category, total_amount in expenses.items()]
+    result = []
+    for category, total_amount in expenses.items():
+        result.append({"category": str(category), "amount": int(total_amount)})
+    return result
 
 
 @log_function
@@ -479,8 +479,15 @@ def get_top_seven_category(data: List[Dict[str, Any]]) -> List[Dict[str, Any]] |
         .head(7)
     )
 
-    # Преобразуем отрицательные суммы в положительные для отображения
-    result = [{**record, 'amount': abs(record['amount'])} for record in result_df.to_dict('records')]
+    # Преобразуем в список словарей и обрабатываем каждый элемент
+    records = result_df.to_dict('records')
+    result = []
+    for record in records:
+        formatted_record: Dict[str, Any] = {}
+        for key, value in record.items():
+            formatted_record[str(key)] = value
+        formatted_record['amount'] = abs(formatted_record['amount'])
+        result.append(formatted_record)
 
     # Логируем результат для отладки
     logger.debug(result)
@@ -549,7 +556,9 @@ def get_transfer_and_cash(data: List[Dict[str, Any]]) -> List[Dict[str, Any]] | 
     result_series = filtered_df.groupby('category')['amount'].sum().abs().round(0).sort_values(ascending=False)
 
     # Преобразование результата в список словарей
-    result = [{'category': category, 'amount': int(amount)} for category, amount in result_series.items()]
+    result = []
+    for category, amount in result_series.items():
+        result.append({'category': str(category), 'amount': int(amount)})
 
     # Логирование финального результата
     logger.debug(result)
@@ -572,7 +581,9 @@ def get_income(data: List[Dict[str, Any]]) -> List[Dict[str, Any]] | None:
     result_series = df[(df['amount'] > 0)].groupby('description')['amount'].sum().round(0).sort_values(ascending=False)
 
     # Преобразование результата в список словарей с описанием и суммой дохода
-    result = [{'category': description, 'amount': int(amount)} for description, amount in result_series.items()]
+    result = []
+    for description, amount in result_series.items():
+        result.append({'category': str(description), 'amount': int(amount)})
 
     # Логирование результата для отладки
     logger.debug(result)
@@ -604,7 +615,7 @@ def get_total_amount(data: List[Dict[str, Any]]) -> int:
         total_expense = expense_df['amount'].sum().round(0)
 
         # Преобразование отрицательной суммы в положительное целое число
-        result = int(abs(total_expense))
+        result = int(abs(float(total_expense)))
 
         # Логирование результата для отладки
         logger.debug(f"Total expense calculated: {result}")
@@ -625,7 +636,7 @@ def get_total_amount_income(data: List[Dict[str, Any]] | None) -> int:
 
     try:
         # Суммируем все amount из словарей
-        total_income = sum(item['amount'] for item in data)
+        total_income: int = sum(item['amount'] for item in data)
 
         # Логирование результата для отладки
         logger.debug(f"Total income calculated: {total_income}")

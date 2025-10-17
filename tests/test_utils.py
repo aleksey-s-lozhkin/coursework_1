@@ -1,14 +1,21 @@
 import json
-import os
 from datetime import datetime
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
 
 from src.utils import (
     exchange_rate,
+    get_cashback,
     get_expense,
+    get_expense_by_category,
+    get_income,
+    get_other_category,
+    get_top_seven_category,
+    get_total_amount,
+    get_total_amount_income,
+    get_transfer_and_cash,
     greeting,
     log_function,
     read_user_setting,
@@ -17,14 +24,6 @@ from src.utils import (
     sorted_by_range,
     stock_price,
     top_five,
-    get_expense_by_category,
-    get_top_seven_category,
-    get_other_category,
-    get_transfer_and_cash,
-    get_income,
-    get_total_amount,
-    get_total_amount_income,
-    get_cashback,
 )
 
 
@@ -530,12 +529,7 @@ def test_all_range(test_data, mid_january_2021_date):
     result = sorted_by_range(test_data, mid_january_2021_date, 'ALL')
 
     result_dates = [item['date'] for item in result]
-    expected_dates = [
-        '01.01.2021 10:00:00',
-        '15.01.2021 14:30:00',
-        '01.01.2020 09:00:00',
-        '15.01.2020 12:00:00'
-    ]
+    expected_dates = ['01.01.2021 10:00:00', '15.01.2021 14:30:00', '01.01.2020 09:00:00', '15.01.2020 12:00:00']
 
     assert result_dates == expected_dates
 
@@ -755,8 +749,15 @@ def test_top_seven_category_exact_seven():
     assert len(result) == 7
 
     # Проверяем порядок от наибольшей суммы к наименьшей
-    expected_categories = ['Категория1', 'Категория2', 'Категория3', 'Категория4', 'Категория5', 'Категория6',
-                           'Категория7']
+    expected_categories = [
+        'Категория1',
+        'Категория2',
+        'Категория3',
+        'Категория4',
+        'Категория5',
+        'Категория6',
+        'Категория7',
+    ]
     result_categories = [item['category'] for item in result]
 
     assert result_categories == expected_categories

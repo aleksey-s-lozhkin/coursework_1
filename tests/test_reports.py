@@ -108,7 +108,8 @@ def test_get_dataframe_from_excel_success(sample_excel_file):
 def test_get_dataframe_from_excel_file_not_found():
     """Тест обработки отсутствующего файла"""
     result = get_dataframe_from_excel('nonexistent_file.xlsx')
-    assert result is None
+    assert isinstance(result, pd.DataFrame)
+    assert result.empty
 
 
 def test_get_dataframe_from_excel_empty_file():
@@ -119,7 +120,8 @@ def test_get_dataframe_from_excel_empty_file():
 
     try:
         result = get_dataframe_from_excel(f.name)
-        assert result is None
+        assert isinstance(result, pd.DataFrame)
+        assert result.empty
     finally:
         if os.path.exists(f.name):
             os.unlink(f.name)
@@ -143,7 +145,8 @@ def test_get_data_by_range_empty_dataframe(empty_dataframe):
     end_date = datetime(2024, 2, 1)
 
     result = get_data_by_range(empty_dataframe, start_date, end_date)
-    assert result is None
+    assert isinstance(result, pd.DataFrame)
+    assert result.empty
 
 
 def test_get_data_by_range_invalid_dates(sample_transactions):
@@ -152,7 +155,8 @@ def test_get_data_by_range_invalid_dates(sample_transactions):
     end_date = datetime(2024, 1, 1)  # start_date > end_date
 
     result = get_data_by_range(sample_transactions, start_date, end_date)
-    assert result is None
+    assert isinstance(result, pd.DataFrame)
+    assert result.empty
 
 
 def test_get_data_by_range_missing_date_column():
@@ -163,7 +167,8 @@ def test_get_data_by_range_missing_date_column():
     end_date = datetime(2024, 2, 1)
 
     result = get_data_by_range(df_without_date, start_date, end_date)
-    assert result is None
+    assert isinstance(result, pd.DataFrame)
+    assert result.empty
 
 
 # ТЕСТИРОВАНИЕ ФУНКЦИИ SPENDING_BY_CATEGORY
@@ -208,7 +213,7 @@ def test_spending_by_category_no_data_in_period(sample_transactions):
     """Тест получения трат по категории, когда нет данных за период"""
     # Используем дату из далекого будущего, когда данных нет
     result = spending_by_category(sample_transactions, 'Еда', '01.01.2030')
-    assert result is not None
+
     assert isinstance(result, pd.DataFrame)
     assert len(result) == 0
 
@@ -218,7 +223,7 @@ def test_spending_by_weekday_success(sample_transactions):
     """Тест успешного получения средних трат по дням недели"""
     result = spending_by_weekday(sample_transactions, '15.03.2024')
 
-    assert result is not None
+
     assert isinstance(result, pd.DataFrame)
     assert 'День недели' in result.columns
     assert 'Сумма операции' in result.columns
@@ -248,7 +253,7 @@ def test_spending_by_workday_success(sample_transactions):
     """Тест успешного получения средних трат по рабочим/выходным дням"""
     result = spending_by_workday(sample_transactions, '15.03.2024')
 
-    assert result is not None
+
     assert isinstance(result, pd.DataFrame)
     assert 'Тип дня' in result.columns
     assert 'Сумма операции' in result.columns
@@ -293,5 +298,6 @@ def test_all_exceptions_parametrized(exception, expected_log_part, caplog):
     ):
         result = get_dataframe_from_excel('test_file.xlsx')
 
-    assert result is None
+    assert isinstance(result, pd.DataFrame)
+    assert result.empty
     assert expected_log_part in caplog.text

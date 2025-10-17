@@ -135,6 +135,8 @@ def investment_bank(date: str, transactions: List[Dict[str, Any]], limit: int) -
         exp_sum = ceil(abs(amount) / limit) * limit
         investment += exp_sum - abs(amount)
 
+    investment = round(investment, 0)
+
     services_logger.info(investment)
 
     # Возвращаем результат в формате JSON
