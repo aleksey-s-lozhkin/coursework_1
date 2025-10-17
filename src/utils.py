@@ -81,17 +81,25 @@ def read_user_setting(setting: str) -> List[str] | None:
 
         # Открываем и читаем JSON файл с настройками
         with open(user_setting_config, 'r', encoding='utf-8') as user_setting:
-            data = json.load(user_setting)
+            data: Dict[str, Any] = json.load(user_setting)
 
             # Возвращаем соответствующие настройки в зависимости от запроса
             if setting == 'user_currencies':
                 result = data.get('user_currencies')
-                logger.info(f'Валюта пользователя: {result}')
-                return result
+                if isinstance(result, list) and all(isinstance(item, str) for item in result):
+                    logger.info(f'Валюта пользователя: {result}')
+                    return result
+                else:
+                    logger.error(f"user_currencies не является списком строк: {type(result)}")
+                    return None
             elif setting == 'user_stocks':
                 result = data.get('user_stocks')
-                logger.info(f'Акции пользователя: {result}')
-                return result
+                if isinstance(result, list) and all(isinstance(item, str) for item in result):
+                    logger.info(f'Акции пользователя: {result}')
+                    return result
+                else:
+                    logger.error(f"user_stocks не является списком строк: {type(result)}")
+                    return None
             else:
                 # Возвращаем None для неизвестных настроек
                 return None
@@ -105,7 +113,6 @@ def read_user_setting(setting: str) -> List[str] | None:
     except json.JSONDecodeError:
         logger.error(f"Ошибка при работе с JSON в файле {user_setting_config}")
         raise
-
 
 @log_function
 def read_xlsx(path: str, sheet: Union[int, str] = 0) -> List[Dict[str, Any]]:
@@ -360,6 +367,10 @@ def get_expense(data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
     # Создаем DataFrame из списка транзакций
     data_frame = pd.DataFrame(data)
+
+    # Проверяем, что DataFrame не пустой и содержит необходимые колонки
+    if data_frame.empty or 'amount' not in data_frame.columns or 'card' not in data_frame.columns:
+        return []
 
     # Фильтруем траты (отрицательные суммы), группируем по карте и вычисляем сумму
     expenses = data_frame[data_frame['amount'] < 0].groupby('card')['amount'].sum().abs().round(2)

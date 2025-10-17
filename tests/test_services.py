@@ -1,16 +1,16 @@
 import json
-from unittest.mock import patch, MagicMock
 from datetime import datetime
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.services import (
+    get_boosted_cashback_categories,
+    investment_bank,
     person_search,
     phone_search,
     services_log_function,
     simple_search,
-    investment_bank,
-    get_boosted_cashback_categories,
 )
 
 
